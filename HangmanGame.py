@@ -76,6 +76,45 @@ def loadDict():
 ENGLISH_WORDS = loadDict()
 
 
+def loadHighScores():
+	'''Open a high scores top ten file and create a dictionary of the scores in it'''
+
+	highScoreFile = open("HighScores.txt")
+	scores = {}
+	contents = highScoreFile.read().split("\n")
+	# scores dict has each score's location in the list as the key and the score itself as the value
+	for line in range(10):
+		scores[str(line)] = contents[line]
+	highScoreFile.close()
+	return scores
+
+
+def saveHighScores(newFileLines):
+	'''Open a high scores top ten file and write the new high scores to it'''
+
+	highScoreFile = open("HighScores.txt", "w")
+	scores = []
+	for value in sorted(newFileLines.values()):
+		scores.append(str(value))
+	highScoreFile.writelines(scores)
+	highScoreFile.close()
+
+
+def getLocationInHighScores(newScore):
+	'''Get a score's location in the top ten'''
+
+	highScores = loadHighScores()
+	for pos, score in sorted(highScores.items()):
+		# No score in this location yet
+		if score == "":
+			return pos
+		# Check if the new score is greater than a score in the list
+		elif newScore > score:
+			return pos
+	# The given score isn't greater than any of the scores in the file, return None
+	return None
+
+
 def isEnglish(word):
 	'''Check if a word is in the english dictionary'''
 
@@ -95,13 +134,13 @@ def isGuessCorrect(completeWord, letter):
 	return letter in completeWord
 
 
-def printInfo(incorrectGuesses, letterGuess, guessCorrect, wordSoFar, completeWord, lettersGuessedSoFar):
+def printInfo(incorrectGuesses, letterGuess, wordSoFar, completeWord, lettersGuessedSoFar):
 	'''Print the letter guess, whether the guess is correct or not, the total number of incorrect
 	guesses, the hangman picture, the incomplete word, and the letters guessed so far.'''
 
 	print("")
 	print("Guess: {0}").format(letterGuess)
-	print("This guess is {0}.").format(str(guessCorrect).lower())
+	print("This guess is {0}.").format(str(isGuessCorrect(completeWord, letterGuess)).lower())
 	print("Total incorrect guesses: {0}").format(str(incorrectGuesses))
 
 	# List index of picture to print = # of incorrect guesses
@@ -119,8 +158,6 @@ def printInfo(incorrectGuesses, letterGuess, guessCorrect, wordSoFar, completeWo
 	# If the guesser has run out of incorrect guesses, print a message
 	elif incorrectGuesses >= INCORRECT_GUESS_AMOUNT:
 		print("Oh no! The correct word wasn't found in time. It was: {0}").format(completeWord.capitalize())
-		print("")
-		print("GAME OVER")
 		print("")
 
 
@@ -181,7 +218,7 @@ def getEnglishWord(playerType):
 	elif playerType == "human":
 		word = ""
 		while not isEnglish(word):
-			word = raw_input("Please enter an English word: ").lower()
+			word = input("Please enter an English word: ").lower()
 		return word
 
 
@@ -207,8 +244,7 @@ def computerTurn(completeWord):
 	while incorrectGuesses < INCORRECT_GUESS_AMOUNT and not isWordFound(completeWord, wordSoFar):
 		letterGuess = orderedLetters[0]
 
-		guessCorrect = isGuessCorrect(completeWord, letterGuess)
-		if guessCorrect:
+		if isGuessCorrect(completeWord, letterGuess):
 			# Add the letter guessed to the knowledge of the player's word in the correct places
 			wordSoFar = updateWordKnowledge(letterGuess, completeWord, wordSoFar)
 
@@ -221,9 +257,9 @@ def computerTurn(completeWord):
 			# Remove words that contain the incorrect letter from the list of possible words
 			possibleWords = removeWordsContainingLetter(possibleWords, letterGuess)
 		print("")
-		raw_input("Press 'enter' for the next guess.")
+		input("Press 'enter' for the next guess.")
 		lettersGuessedSoFar.append(letterGuess)
-		printInfo(incorrectGuesses, letterGuess, guessCorrect, wordSoFar, completeWord, lettersGuessedSoFar)
+		printInfo(incorrectGuesses, letterGuess, wordSoFar, completeWord, lettersGuessedSoFar)
 
 		# Remove the incorrect letter and letters not found in any of the possible words from the
 		# list of letters
@@ -243,10 +279,9 @@ def humanTurn(completeWord):
 		letterGuess = ""
 		# Don't let the player guess a letter that they've alreay guessed
 		while len(letterGuess) != 1 or not letterGuess.isalpha() or letterGuess in lettersGuessedSoFar:
-			letterGuess = raw_input("Enter your guess for a letter in the word: ").lower()
+			letterGuess = input("Enter your guess for a letter in the word: ").lower()
 
-		guessCorrect = isGuessCorrect(completeWord, letterGuess)
-		if guessCorrect:
+		if isGuessCorrect(completeWord, letterGuess):
 			# Add the letter guessed to the knowledge of the computer's word in the correct places
 			wordSoFar = updateWordKnowledge(letterGuess, completeWord, wordSoFar)
 
@@ -254,24 +289,51 @@ def humanTurn(completeWord):
 			incorrectGuesses += 1
 
 		lettersGuessedSoFar.append(letterGuess)
-		printInfo(incorrectGuesses, letterGuess, guessCorrect, wordSoFar, completeWord, lettersGuessedSoFar)
+		printInfo(incorrectGuesses, letterGuess, wordSoFar, completeWord, lettersGuessedSoFar)
 
+	# If the player won, return the amount of incorrect guesses they made
+	if incorrectGuesses < INCORRECT_GUESS_AMOUNT:
+		return incorrectGuesses
+
+	return None
 
 def main():
 	print("Welcome to Hangman!")
-	raw_input("Press the 'enter' key to begin playing.")
+	input("Press the 'enter' key to begin playing.")
 	print("")
 	print("On your turn, the computer will think of a word. You will try to guess each letter of the word.")
 	print("On the computer's turn, you will think of a word. The computer will try to guess each letter of it.")
 	print("Each time you make an incorrect guess, more parts of a stick figure are drawn. You can only make {0} incorrect guesses before you lose the game.").format(str(INCORRECT_GUESS_AMOUNT))
-	raw_input()
+	input()
 
 	# Main game loop
 	while True:
 		# Player guesses computer's word
 		print("You will go first.")
 		word = getEnglishWord("computer")
-		humanTurn(word)
+		incorrectGuesses = humanTurn(word)
+
+		# If the player found the correct word in time, see if their score is in the top ten
+		if incorrectGuesses != None:
+			scoreLocation = getLocationInHighScores(incorrectGuesses)
+
+			# Score is in top ten
+			if scoreLocation != None:
+				highScores = loadHighScores()
+				highScores[scoreLocation] = incorrectGuesses
+				print("Congratulations! Your score is in the top ten!")
+				print("")
+
+				# Print the top ten high scores
+				for pos, score in sorted(highScores.items()):
+					if pos == scoreLocation:
+						# Put asterisks around the player's score
+						print(pos + ". " + "*" + str(score) + "*")
+					else:
+						print(pos + ". " + str(score))
+				saveHighScores(highScores)
+		print("")
+		print("")
 
 		# Computer guesses player's word
 		print("Now the computer will go.")
@@ -280,8 +342,8 @@ def main():
 		print("")
 		computerTurn(word)
 
-		ans = raw_input("Want to play again? (y/n): ").lower()
-		if ans[0] == "n":
+		ans = input("Want to play again? (y/n): ").lower()
+		if ans in ("n", "no"):
 			sys.exit()
 
 if __name__ == "__main__":
