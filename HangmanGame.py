@@ -1,5 +1,6 @@
 import sys, random
 
+ALPHABET = "abcdefghijklmnopqrstuvwxyz"
 # The number of incorrect guesses the player can make before losing the game
 INCORRECT_GUESS_AMOUNT = 7
 
@@ -67,9 +68,10 @@ def loadDict():
 	
 	dictFile = open("dictionary.txt")
 	words = []
+	nonwords = []
 	for word in dictFile.read().split("\n"):
 		if word != "":
-			words.append(word)
+			words.append(word.lower())
 	dictFile.close()
 	return words
 
@@ -139,25 +141,25 @@ def printInfo(incorrectGuesses, letterGuess, wordSoFar, completeWord, lettersGue
 	guesses, the hangman picture, the incomplete word, and the letters guessed so far.'''
 
 	print("")
-	print("Guess: {0}").format(letterGuess)
-	print("This guess is {0}.").format(str(isGuessCorrect(completeWord, letterGuess)).lower())
-	print("Total incorrect guesses: {0}").format(str(incorrectGuesses))
+	print("Guess: {0}".format(letterGuess))
+	print("This guess is {0}.".format(str(isGuessCorrect(completeWord, letterGuess)).lower()))
+	print("Total incorrect guesses: {0}".format(str(incorrectGuesses)))
 
 	# List index of picture to print = # of incorrect guesses
 	print(HANGMAN_GRAPHICS[incorrectGuesses])
 
 	print(wordSoFar.capitalize())
-	print("Letters guessed so far: {0}").format(" ".join(lettersGuessedSoFar))
+	print("Letters guessed so far: {0}".format(" ".join(lettersGuessedSoFar)))
 	print("")
 
 	# If the correct word was found, print a message
 	if isWordFound(completeWord, wordSoFar):
-		print("Hooray! The correct word has been found. It was: {0}").format(completeWord.capitalize())
+		print("Hooray! The correct word has been found. It was: {0}".format(completeWord.capitalize()))
 		print("")
 
 	# If the guesser has run out of incorrect guesses, print a message
 	elif incorrectGuesses >= INCORRECT_GUESS_AMOUNT:
-		print("Oh no! The correct word wasn't found in time. It was: {0}").format(completeWord.capitalize())
+		print("Oh no! The correct word wasn't found in time. It was: {0}".format(completeWord.capitalize()))
 		print("")
 
 
@@ -176,6 +178,7 @@ def removeNonMatchingWords(possibleWords, wordSoFar):
 	'''Remove words that can't be a certain word from the list of possible words'''
 
 	for word in reversed(possibleWords):
+		# Make sure each letter in the word matches the letters that have been found in the word so far
 		for index, char in enumerate(word):
 			if wordSoFar[index] != "-" and wordSoFar[index] != char:
 				possibleWords.remove(word)
@@ -192,22 +195,32 @@ def removeWordsContainingLetter(possibleWords, letter):
 	return possibleWords
 
 
-def isLetterInWords(possibleWords, letter):
-	'''Check if a letter is found in any of the words given'''
+def getLettersFreq(wordDict, lettersGuessedSoFar):
+	'''Return string of letters ordered from most to least frequent based on the letters in the word
+	dictionary'''
 
-	for word in possibleWords:
-		if letter in word:
-			return True
-	return False
+	letterToFreq = {}
+	for letter in ALPHABET:
+		# Don't add letters that have already been guessed to the string of letters that can be guessed
+		if letter not in lettersGuessedSoFar:
+			letterToFreq[letter] = 0
+	for word in wordDict:
+		for letter in word:
+			if letter not in lettersGuessedSoFar and letter in ALPHABET:
+				letterToFreq[letter] += 1
 
+	# Create list of tuples with the letter frequency as the first value in the tuple and the letter
+	# itself as the second value. Sort this list from the highest frequencies to the lowest frequencies
+	freqToLetter = list(zip(letterToFreq.values(), letterToFreq.keys()))
+	freqToLetter.sort(reverse=True)
 
-def removeLettersNotInWords(possibleWords, availableLetters):
-	'''Remove letters not found in any of the possible words from the list of available letters'''
+	orderedLetters = ""
+	for freqAndLetter in freqToLetter:
+		# Don't add letters with a frequency of 0
+		if freqAndLetter[0] != 0:
+			orderedLetters += freqAndLetter[1]
 
-	for letter in reversed(availableLetters):
-		if not isLetterInWords(possibleWords, letter):
-			availableLetters.remove(letter)
-	return availableLetters
+	return orderedLetters
 
 
 def getEnglishWord(playerType):
@@ -217,6 +230,7 @@ def getEnglishWord(playerType):
 		return random.choice(ENGLISH_WORDS)
 	elif playerType == "human":
 		word = ""
+		# Don't let the player enter a non-English word
 		while not isEnglish(word):
 			word = input("Please enter an English word: ").lower()
 		return word
@@ -234,12 +248,13 @@ def computerTurn(completeWord):
 	# length as the player's word
 	possibleWords = []
 	for word in ENGLISH_WORDS:
-		if len(word) == len(wordSoFar):
+		# Only add words that are as long as the complete word
+		if len(completeWord) == len(word):
 			possibleWords.append(word)
 
 	# Create a list of letters ordered from most frequent to least frequent. As the computer
 	# makes guesses and recieves feedback, this list will be pruned
-	orderedLetters = list("etaoinshrdlcumwfgypbvkjxqz")
+	orderedLetters = getLettersFreq(possibleWords, lettersGuessedSoFar)
 
 	while incorrectGuesses < INCORRECT_GUESS_AMOUNT and not isWordFound(completeWord, wordSoFar):
 		letterGuess = orderedLetters[0]
@@ -247,24 +262,19 @@ def computerTurn(completeWord):
 		if isGuessCorrect(completeWord, letterGuess):
 			# Add the letter guessed to the knowledge of the player's word in the correct places
 			wordSoFar = updateWordKnowledge(letterGuess, completeWord, wordSoFar)
-
 			# Remove the words that can't be the player's word from the list of possible words
 			possibleWords = removeNonMatchingWords(possibleWords, wordSoFar)
-
 		else:
 			incorrectGuesses += 1
-
 			# Remove words that contain the incorrect letter from the list of possible words
 			possibleWords = removeWordsContainingLetter(possibleWords, letterGuess)
+
+		lettersGuessedSoFar.append(letterGuess)
+		orderedLetters = getLettersFreq(possibleWords, lettersGuessedSoFar)
+
 		print("")
 		input("Press 'enter' for the next guess.")
-		lettersGuessedSoFar.append(letterGuess)
 		printInfo(incorrectGuesses, letterGuess, wordSoFar, completeWord, lettersGuessedSoFar)
-
-		# Remove the incorrect letter and letters not found in any of the possible words from the
-		# list of letters
-		orderedLetters.remove(letterGuess)
-		orderedLetters = removeLettersNotInWords(possibleWords, orderedLetters)
 
 
 def humanTurn(completeWord):
@@ -303,7 +313,7 @@ def main():
 	print("")
 	print("On your turn, the computer will think of a word. You will try to guess each letter of the word.")
 	print("On the computer's turn, you will think of a word. The computer will try to guess each letter of it.")
-	print("Each time you make an incorrect guess, more parts of a stick figure are drawn. You can only make {0} incorrect guesses before you lose the game.").format(str(INCORRECT_GUESS_AMOUNT))
+	print("Each time you make an incorrect guess, more parts of a stick figure are drawn. You can only make {0} incorrect guesses before you lose the game.".format(str(INCORRECT_GUESS_AMOUNT)))
 	input()
 
 	# Main game loop
