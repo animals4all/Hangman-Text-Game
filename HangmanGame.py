@@ -97,7 +97,7 @@ def saveHighScores(newFileLines):
 	highScoreFile = open("HighScores.txt", "w")
 	scores = []
 	for value in sorted(newFileLines.values()):
-		scores.append(str(value))
+		scores.append(str(value) + "\n")
 	highScoreFile.writelines(scores)
 	highScoreFile.close()
 
@@ -107,11 +107,8 @@ def getLocationInHighScores(newScore):
 
 	highScores = loadHighScores()
 	for pos, score in sorted(highScores.items()):
-		# No score in this location yet
-		if score == "":
-			return pos
-		# Check if the new score is greater than a score in the list
-		elif newScore > score:
+		# Check if the new score is better than a score in the list
+		if newScore < int(score):
 			return pos
 	# The given score isn't greater than any of the scores in the file, return None
 	return None
@@ -279,7 +276,7 @@ def computerTurn(completeWord):
 
 def humanTurn(completeWord):
 	'''The human player tries to guess what the computer's word is'''
-
+	
 	wordLength = len(completeWord)
 	lettersGuessedSoFar = []
 	incorrectGuesses = 0
@@ -330,7 +327,7 @@ def main():
 			# Score is in top ten
 			if scoreLocation != None:
 				highScores = loadHighScores()
-				highScores[scoreLocation] = incorrectGuesses
+				highScores[scoreLocation] = str(incorrectGuesses)
 				print("Congratulations! Your score is in the top ten!")
 				print("")
 
