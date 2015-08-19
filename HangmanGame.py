@@ -1,3 +1,5 @@
+# Dictionary from: www-01.sil.org
+
 import sys, random
 
 ALPHABET = "abcdefghijklmnopqrstuvwxyz"
